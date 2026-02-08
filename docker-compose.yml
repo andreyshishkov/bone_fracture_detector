@@ -1,0 +1,48 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      MEDIA_ROOT: /media
+      CELERY_BROKER_URL: redis://redis:6379/0
+    volumes:
+      - media:/media
+    depends_on:
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    environment:
+      MEDIA_ROOT: /media
+      CELERY_BROKER_URL: redis://redis:6379/0
+      WORKER_MODELS_DIR: /models
+    volumes:
+      - media:/media
+      - ./backend/worker/models:/models:ro
+    depends_on:
+      - redis
+      - api
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    ports:
+      - "8501:8501"
+    environment:
+      BACKEND_URL: http://api:8000
+    depends_on:
+      - api
+
+volumes:
+  media:
